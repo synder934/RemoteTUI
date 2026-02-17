@@ -3,30 +3,36 @@ import time
 import termios
 import tty
 import select
+import logging
+from ui.object import Object, TextObject, ButtonObject
 
-from ui.object import Object, TextObject
 
+fileHandler = logging.FileHandler(os.path.join("logs", ".log"))
+logger = logging.Logger("TUI Logger")
+logger.addHandler(fileHandler)
+
+
+logger.info("Starting")
 
 class TUI:
     def __init__(self):
         self.lines = 0
         self.columns = 0
 
+        self.current_menu = 0
+        
         self.logo = Object.from_txt(os.path.join("ui", "components", "logo.txt"))
 
-        self.enable_raw()
+        self.selected_component = 0
+        self.components = []
 
-        self.enable_alt_screen()
-        self.hide_cursor()
-        self.clear_scrollback()
 
-        try:
-            self.mainloop()
-        finally:
+
+    def __del__(self):
+            logger.info("bye bye")
             self.disable_raw()
             self.show_cursor()
             self.disable_alt_screen()
-        pass
 
     def disable_alt_screen(self):
         print("\033[?1049l", end="")
@@ -76,8 +82,8 @@ class TUI:
         print("\033[H\033[J", end="")
 
     def build_frame(self):
-
-        frame = Object(height=self.lines, width=self.columns)
+        frame = Object(children=self.components, height=self.lines, width=self.columns)
+        
 
         screen_dimentions = TextObject(
             f"{self.lines}x{self.columns}",
@@ -89,9 +95,19 @@ class TUI:
         frame.compose(self.logo)
         frame.compose(screen_dimentions)
 
+        button = ButtonObject("kill me", quit, y=self.logo.height+2)
+
+        frame.compose(button)
+
         return frame
 
     def mainloop(self):
+        self.enable_raw()
+        self.enable_alt_screen()
+        self.hide_cursor()
+        self.clear_scrollback()
+
+
         running = True
         dirty = True
 
@@ -105,8 +121,11 @@ class TUI:
             if key:
                 dirty = True
 
+                logger.info(f"{key.encode()} pressed")
                 if key == "q":
                     running = False
+                if key == "\t":
+                    self.selected_component += 1
                 else:
                     print(f"Pressed: {repr(key)}")
 
